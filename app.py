@@ -9,11 +9,9 @@ st.set_page_config(page_title="Μισθοδοσία", page_icon="📱", layout="
 if "db" not in st.session_state:
     st.session_state.db = pd.DataFrame(columns=["Ημερομηνία", "Κατάσταση", "Είσοδος", "Έξοδος", "Διάλειμμα Από", "Διάλειμμα Έως", "Έξτρα Μικτά"])
 
-# Συναρτήση που μετατρέπει τα λεπτά σε μορφή Ώρα:Λεπτά (π.χ. 450 -> 07:30)
-def minutes_to_string(minutes):
-    h = minutes // 60
-    m = minutes % 60
-    return f"{h:02d}:{m:02d}"
+# Λίστες για τους τροχούς (00-23 για ώρες, 00-59 για λεπτά)
+hours_options = [f"{h:02d}" for h in range(24)]
+minutes_options = [f"{m:02d}" for m in range(60)]
 
 # --- 1. ΠΑΝΩ ΜΠΛΕ ΜΠΑΡΑ ---
 st.markdown(
@@ -31,15 +29,21 @@ st.subheader("Επεξεργασία Ημέρας")
 
 date_val = st.date_input("Επιλογή Ημέρας", datetime.now(), format="DD/MM/YYYY")
 
-# Ώρες Από / Μέχρι με Μπάρα Κύλισης (Slider) - Σέρνεις το δάχτυλο για να αλλάξει η ώρα!
-st.write("🕒 **Ωράριο Εργασίας (Σύρετε για να αλλάξετε την ώρα):**")
+# --- ΤΡΟΧΟΙ ΩΡΑΣ ΕΙΣΟΔΟΥ (Όπως η φωτογραφία σου) ---
+st.write("🕒 **Ώρα Εισόδου:**")
+col_in_h, col_in_m = st.columns(2)
+with col_in_h:
+    in_h = st.selectbox("Ω", hours_options, index=7, key="in_h") # Προεπιλογή 07
+with col_in_m:
+    in_m = st.selectbox("Λ", minutes_options, index=30, key="in_m") # Προεπιλογή 30
 
-# Από 05:00 (300 λεπτά) έως 23:00 (1380 λεπτά), με βήμα 15 λεπτά
-min_in = st.slider("Από (Είσοδος)", min_value=300, max_value=1380, value=450, step=15, format="")
-st.info(f"Ώρα Εισόδου: **{minutes_to_string(min_in)}**")
-
-min_out = st.slider("Μέχρι (Έξοδος)", min_value=300, max_value=1380, value=1100, step=15, format="")
-st.info(f"Ώρα Εξόδου: **{minutes_to_string(min_out)}**")
+# --- TΡΟΧΟΙ ΩΡΑΣ ΕΞΟΔΟΥ (Όπως η φωτογραφία σου) ---
+st.write("🕒 **Ώρα Εξόδου:**")
+col_out_h, col_out_m = st.columns(2)
+with col_out_h:
+    out_h = st.selectbox("Ω ", hours_options, index=18, key="out_h") # Προεπιλογή 18
+with col_out_m:
+    out_m = st.selectbox("Λ ", minutes_options, index=20, key="out_m") # Προεπιλογή 20
 
 # ΕΠΙΛΟΓΗ ΚΑΤΑΣΤΑΣΗΣ
 status = st.selectbox("Περισσότερα", ["Κανονικό Ωράριο", "Αργία (Εργασία)", "Ρεπό", "Άδεια", "Ασθένεια"])
@@ -49,16 +53,22 @@ st.markdown('<div style="background-color: #f0f2f6; padding: 15px; border-radius
 has_break = st.toggle("ΔΙΑΛΕΙΜΜΑ", value=True)
 
 if has_break:
-    min_b_in = st.slider("Διάλειμμα Από", min_value=300, max_value=1380, value=780, step=15, format="")
-    st.caption(f"Από: **{minutes_to_string(min_b_in)}**")
-    
-    min_b_out = st.slider("Διάλειμμα Μέχρι", min_value=300, max_value=1380, value=810, step=15, format="")
-    st.caption(f"Έως: **{minutes_to_string(min_b_out)}**")
+    col_b_in_h, col_b_in_m = st.columns(2)
+    with col_b_in_h:
+        bin_h = st.selectbox("Από (Ω)", hours_options, index=13, key="bin_h") # Προεπιλογή 13
+    with col_b_in_m:
+        bin_m = st.selectbox("Από (Λ)", minutes_options, index=0, key="bin_m") # Προεπιλογή 00
+        
+    col_b_out_h, col_b_out_m = st.columns(2)
+    with col_b_out_h:
+        bout_h = st.selectbox("Μέχρι (Ω)", hours_options, index=13, key="bout_h") # Προεπιλογή 13
+    with col_b_out_m:
+        bout_m = st.selectbox("Μέχρι (Λ)", minutes_options, index=30, key="bout_m") # Προεπιλογή 30
 else:
-    min_b_in, min_b_out = 0, 0
+    bin_h, bin_m, bout_h, bout_m = "00", "00", "00", "00"
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Σταθερός βασικός μικτός μισθός
+# Σταθεροί υπολογισμοί
 gross_salary = 1196.0
 hourly_rate = gross_salary * 0.006  
 day_rate = gross_salary / 25        
@@ -68,18 +78,21 @@ st.markdown("<br>", unsafe_allow_html=True)
 if st.button("ΠΡΟΣΘΗΚΗ", use_container_width=True):
     try:
         extra_pay = 0.0
+        time_in_str = f"{in_h}:{in_m}"
+        time_out_str = f"{out_h}:{out_m}"
+        break_in_str = f"{bin_h}:{bin_m}"
+        break_out_str = f"{bout_h}:{bout_m}"
         
         if status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"]:
-            total_hours = (min_out - min_in) / 60.0
+            total_hours = ((int(out_h) * 60 + int(out_m)) - (int(in_h) * 60 + int(in_m))) / 60.0
             
             if has_break:
-                break_hours = (min_b_out - min_b_in) / 60.0
+                break_hours = ((int(bout_h) * 60 + int(bout_m)) - (int(bin_h) * 60 + int(bin_m))) / 60.0
                 total_hours -= break_hours
                 
             if total_hours <= 0:
                 st.error("⚠️ Η ώρα εξόδου πρέπει να είναι μετά την ώρα εισόδου!")
             else:
-                # Υπεργασίες & Υπερωρίες
                 hypergasia = 0.0
                 hyperoria = 0.0
                 if total_hours > 8.0:
@@ -96,10 +109,10 @@ if st.button("ΠΡΟΣΘΗΚΗ", use_container_width=True):
         new_row = pd.DataFrame([{
             "Ημερομηνία": date_val.strftime('%d/%m/%Y'),
             "Κατάσταση": status,
-            "Είσοδος": minutes_to_string(min_in) if status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"] else "-",
-            "Έξοδος": minutes_to_string(min_out) if status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"] else "-",
-            "Διάλειμμα Από": minutes_to_string(min_b_in) if (has_break and status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"]) else "-",
-            "Διάλειμμα Έως": minutes_to_string(min_b_out) if (has_break and status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"]) else "-",
+            "Είσοδος": time_in_str if status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"] else "-",
+            "Έξοδος": time_out_str if status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"] else "-",
+            "Διάλειμμα Από": break_in_str if (has_break and status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"]) else "-",
+            "Διάλειμμα Έως": break_out_str if (has_break and status in ["Κανονικό Ωράριο", "Αργία (Εργασία)"]) else "-",
             "Έξτρα Μικτά": round(extra_pay, 2)
         }])
         st.session_state.db = pd.concat([st.session_state.db, new_row], ignore_index=True)
