@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 from datetime import datetime
 
@@ -72,16 +72,6 @@ if st.button("ΠΡΟΣΘΗΚΗ", use_container_width=True):
         hourly_rate = gross_salary * 0.006
         extra_pay = (hypergasia * hourly_rate * 1.20) + (hyperoria * hourly_rate * 1.40)
         
-        # Προσωρινός υπολογισμός μικτών ημέρας
-        day_gross = (gross_salary / 25) + extra_pay
-        
-        # ΝΕΟΣ ΑΚΡΙΒΗΣ ΥΠΟΛΟΓΙΣΜΟΣ ΒΑΣΕΙ ΤΗΣ ΕΙΚΟΝΑΣ ΣΟΥ (ΙΚΑ 13.37%)
-        efka_day = day_gross * 0.1337
-        # Αναλογική προσθήκη της επιδότησης ανά ημέρα (58.70 / 25 μέρες = ~2.348€)
-        subsidy_day = 58.70 / 25
-        
-        net_day = (day_gross - efka_day) + subsidy_day
-        
         new_row = pd.DataFrame([{
             "Ημερομηνία": date_val.strftime('%d/%m/%Y'),
             "Μικτός": gross_salary,
@@ -89,7 +79,6 @@ if st.button("ΠΡΟΣΘΗΚΗ", use_container_width=True):
             "Έξοδος": time_out,
             "Διάλειμμα Από": break_in if has_break else "-",
             "Διάλειμμα Έως": break_out if has_break else "-",
-            "Καθαρά": round(net_day, 2),
             "Έξτρα Μικτά": round(extra_pay, 2)
         }])
         st.session_state.db = pd.concat([st.session_state.db, new_row], ignore_index=True)
@@ -102,44 +91,39 @@ if not st.session_state.db.empty:
     st.markdown("---")
     st.subheader("Στατιστικά Μήνα")
     
-    # Ελαστικό μπόνους στο τέλος του μήνα
     input_bonus = st.number_input("Μπόνους Μήνα (€):", value=120.0, step=10.0)
     
     total_entries = len(st.session_state.db)
-    
-    # Συνολικά έξτρα μικτά από υπερωρίες
     total_extra_gross = st.session_state.db["Έξτρα Μικτά"].sum()
     
-    # Σύνολο Αποδοχών (Μικτά) = Βασικός + Μπόνους + Υπερωρίες
+    # Σύνολο Αποδοχών (Μικτά)
     total_gross_all = gross_salary + input_bonus + total_extra_gross
     
-    # Ακριβείς Κρατήσεις ΙΚΑ 13.37% (Όπως η εικόνα σου)
-    total_ika = total_gross_all * 0.1337
+    # Αρχικές κρατήσεις βάσει ΙΚΑ 13.37%
+    raw_ika = total_gross_all * 0.1337
+    subsidy = 58.70
     
-    # Σταθερή Επιδότηση Εργαζομένου (Όπως η εικόνα σου)
-    total_subsidy = 58.70
+    # Πραγματικές Κρατήσεις ΙΚΑ (Η επιδότηση μειώνει τις κρατήσεις, δεν μπαίνει στην τσέπη)
+    actual_ika = max(0.0, raw_ika - subsidy)
     
-    # Υπολογισμός Φόρου ΦΜΥ (Προσαρμοσμένος βάσει των δικών σου κρατήσεων)
-    taxable_income = total_gross_all - total_ika
+    # Υπολογισμός Φόρου ΦΜΥ
+    taxable_income = total_gross_all - actual_ika
     if taxable_income > 833:
         total_fmy = (taxable_income - 833) * 0.22
     else:
         total_fmy = 0.0
         
-    # Τελικά Καθαρά στην τσέπη
-    final_net_salary = (total_gross_all - total_ika) + total_subsidy - total_fmy
+    # Τελικός Καθαρός Μισθός (Μικτά - Πραγματικό ΙΚΑ - Φόρος)
+    final_net_salary = total_gross_all - actual_ika - total_fmy
     
     st.metric(label="Εργάσιμες Ημέρες", value=f"{total_entries} μέρες")
     st.metric(label="💰 ΤΕΛΙΚΟΣ ΚΑΘΑΡΟΣ ΜΙΣΘΟΣ (Στην τσέπη)", value=f"{round(final_net_salary, 2)} €")
     
-    # Αναλυτική ανάλυση για να τα βλέπεις όπως το εκκαθαριστικό σου
-    st.write("📝 **Ανάλυση Αποδοχών:**")
+    st.write("¼  **Ανάλυση Αποδοχών (Όπως το εκκαθαριστικό σου):**")
     st.text(f"• Σύνολο Μικτών Αποδοχών: {round(total_gross_all, 2)} €")
-    st.text(f"• Κρατήσεις ΙΚΑ (13.37%): -{round(total_ika, 2)} €")
-    st.text(f"• Επιδότηση Εργαζομένου: +{total_subsidy} €")
+    st.text(f"• Πραγματικές Κρατήσεις ΙΚΑ (Μειωμένες λόγω επιδότησης): -{round(actual_ika, 2)} €")
     st.text(f"• Κρατήσεις ΦΜΥ (Φόρος): -{round(total_fmy, 2)} €")
     
-    # Λίστα εγγραχών με κουμπί διαγραφής
     st.write("<br>📂 **Καταχωρημένες Ημέρες (Πατήστε το X για διαγραφή):**", unsafe_allow_html=True)
     for index, row in st.session_state.db.iterrows():
         col_text, col_btn = st.columns([0.85, 0.15])
@@ -149,6 +133,7 @@ if not st.session_state.db.empty:
             if st.button("❌", key=f"del_{index}"):
                 st.session_state.db = st.session_state.db.drop(index).reset_index(drop=True)
                 st.rerun()
+                
     
                                                                
   
