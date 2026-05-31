@@ -24,7 +24,7 @@ st.markdown(
 st.subheader("Επεξεργασία Ημέρας")
 
 # Επιλογή Ημέρας
-date_val = st.date_input("Επιλογή Ημέρας", datetime.now())
+date_val = st.date_input("Επιλογή Ημέρας", datetime.now(), format="DD/MM/YYYY")
 
 # Ώρες Από / Μέχρι
 col1, col2 = st.columns(2)
