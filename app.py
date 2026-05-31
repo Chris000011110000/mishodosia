@@ -1,4 +1,4 @@
-    import streamlit as st
+import streamlit as st
 import pandas as pd
 from datetime import datetime
 
@@ -103,7 +103,7 @@ if not st.session_state.db.empty:
     raw_ika = total_gross_all * 0.1337
     subsidy = 58.70
     
-    # Πραγματικές Κρατήσεις ΙΚΑ (Η επιδότηση μειώνει τις κρατήσεις, δεν μπαίνει στην τσέπη)
+    # Πραγματικές Κρατήσεις ΙΚΑ (Η επιδότηση μειώνει τις κρατήσεις)
     actual_ika = max(0.0, raw_ika - subsidy)
     
     # Υπολογισμός Φόρου ΦΜΥ
@@ -113,13 +113,13 @@ if not st.session_state.db.empty:
     else:
         total_fmy = 0.0
         
-    # Τελικός Καθαρός Μισθός (Μικτά - Πραγματικό ΙΚΑ - Φόρος)
+    # Τελικός Καθαρός Μισθός
     final_net_salary = total_gross_all - actual_ika - total_fmy
     
     st.metric(label="Εργάσιμες Ημέρες", value=f"{total_entries} μέρες")
     st.metric(label="💰 ΤΕΛΙΚΟΣ ΚΑΘΑΡΟΣ ΜΙΣΘΟΣ (Στην τσέπη)", value=f"{round(final_net_salary, 2)} €")
     
-    st.write("¼  **Ανάλυση Αποδοχών (Όπως το εκκαθαριστικό σου):**")
+    st.write("📝 **Ανάλυση Αποδοχών (Όπως το εκκαθαριστικό σου):**")
     st.text(f"• Σύνολο Μικτών Αποδοχών: {round(total_gross_all, 2)} €")
     st.text(f"• Πραγματικές Κρατήσεις ΙΚΑ (Μειωμένες λόγω επιδότησης): -{round(actual_ika, 2)} €")
     st.text(f"• Κρατήσεις ΦΜΥ (Φόρος): -{round(total_fmy, 2)} €")
@@ -133,6 +133,7 @@ if not st.session_state.db.empty:
             if st.button("❌", key=f"del_{index}"):
                 st.session_state.db = st.session_state.db.drop(index).reset_index(drop=True)
                 st.rerun()
+                
                 
     
                                                                
