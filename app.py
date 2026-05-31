@@ -23,7 +23,7 @@ st.markdown(
 # --- 2. ΠΕΡΙΟΧΗ ΚΑΤΑΧΩΡΗΣΗΣ (Όπως η φωτογραφία σου) ---
 st.subheader("Επεξεργασία Ημέρας")
 
-# Επιλογή Ημέρας
+# Επιλογή Ημέρας με σωστή ελληνική μορφή
 date_val = st.date_input("Επιλογή Ημέρας", datetime.now(), format="DD/MM/YYYY")
 
 # Ώρες Από / Μέχρι
@@ -110,6 +110,18 @@ if not st.session_state.db.empty:
     st.metric(label="Εργάσιμες Ημέρες", value=f"{total_entries} μέρες")
     st.metric(label="Τελικός Καθαρός Μισθός (με Υπερωρίες & Μπόνους)", value=f"{round(total_net, 2)} €")
     
-    # Εμφάνιση πίνακα ημερών
-    st.dataframe(st.session_state.db, use_container_width=True)
+    # Λίστα εγγραφών με κουμπί διαγραφής
+    st.write("📂 **Καταχωρημένες Ημέρες (Πατήστε το X για διαγραφή):**")
+    
+    # Εμφάνιση κάθε σειράς ξεχωριστά με ένα κόκκινο κουμπί Χ δίπλα της
+    for index, row in st.session_state.db.iterrows():
+        col_text, col_btn = st.columns([0.85, 0.15])
+        with col_text:
+            st.info(f"📅 {row['Ημερομηνία']} | 🕒 {row['Είσοδος']}-{row['Έξοδος']} | 💰 Καθαρά: {row['Καθαρά']} €")
+        with col_btn:
+            # Αν πατηθεί το Χ, σβήνει αυτή τη σειρά
+            if st.button("❌", key=f"del_{index}"):
+                st.session_state.db = st.session_state.db.drop(index).reset_index(drop=True)
+                st.rerun()
+                
   
