@@ -47,9 +47,8 @@ with col4:
     break_out = st.text_input("Μέχρι ", value="13:30", disabled=not has_break)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Κρυφό πεδίο για τον βασικό μισθό που θέλουμε στους υπολογισμούς
+# Σταθερός βασικός μισθός
 gross_salary = 1196.0
-bonus = 120.0
 
 # --- 4. ΚΟΥΜΠΙ ΠΡΟΣΘΗΚΗΣ & ΥΠΟΛΟΓΙΣΜΟΙ ---
 st.markdown("<br>", unsafe_allow_html=True)
@@ -104,24 +103,26 @@ if not st.session_state.db.empty:
     st.markdown("---")
     st.subheader("Στατιστικά Μήνα")
     
+    # ΠΕΔΙΟ ΜΠΟΝΟΥΣ: Μπορείς να το αλλάξεις όποτε θες στο τέλος του μήνα
+    input_bonus = st.number_input("Μπόνους Μήνα (€):", value=120.0, step=10.0)
+    
     total_entries = len(st.session_state.db)
-    total_net = st.session_state.db["Καθαρά"].sum() + (bonus * 0.86) # Μπόνους με αφαίρεση κρατήσεων
+    # Υπολογισμός τελικού ποσού με το μπόνους που έβαλε ο χρήστης (με αφαίρεση κρατήσεων ΕΦΚΑ)
+    total_net = st.session_state.db["Καθαρά"].sum() + (input_bonus * 0.8613)
     
     st.metric(label="Εργάσιμες Ημέρες", value=f"{total_entries} μέρες")
     st.metric(label="Τελικός Καθαρός Μισθός (με Υπερωρίες & Μπόνους)", value=f"{round(total_net, 2)} €")
     
-    # Λίστα εγγραφών με κουμπί διαγραφής
+    # Λίστα εγγραχών με κουμπί διαγραφής
     st.write("📂 **Καταχωρημένες Ημέρες (Πατήστε το X για διαγραφή):**")
     
-    # Εμφάνιση κάθε σειράς ξεχωριστά με ένα κόκκινο κουμπί Χ δίπλα της
     for index, row in st.session_state.db.iterrows():
         col_text, col_btn = st.columns([0.85, 0.15])
         with col_text:
             st.info(f"📅 {row['Ημερομηνία']} | 🕒 {row['Είσοδος']}-{row['Έξοδος']} | 💰 Καθαρά: {row['Καθαρά']} €")
         with col_btn:
-            # Αν πατηθεί το Χ, σβήνει αυτή τη σειρά
             if st.button("❌", key=f"del_{index}"):
                 st.session_state.db = st.session_state.db.drop(index).reset_index(drop=True)
                 st.rerun()
-                
+                                                               
   
